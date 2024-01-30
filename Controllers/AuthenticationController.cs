@@ -22,7 +22,7 @@ namespace EmployeeWebApi.Controllers
             _authService = authService;
         }
       
-        [HttpPost("")]
+        [HttpPost]
         public IActionResult Authenticate([FromBody] LoginModel credentials)
         {
             if (IsValidUser(credentials))

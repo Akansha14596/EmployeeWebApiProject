@@ -10,18 +10,18 @@ using System.Reflection;
 
 namespace EmployeeWebApi.Controllers
 {
-    [Authorize]
+   // [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class EmployeeController : ControllerBase
     {
-        private readonly EmployeeDbContext _employeeDbContext;
+        private static EmployeeDbContext _employeeDbContext;
         public EmployeeController(EmployeeDbContext employeeDbContext) 
         { 
             _employeeDbContext = employeeDbContext;
         }
 
-        [HttpPost("")]
+        [HttpPost]
         public async Task<IActionResult> SaveEmployeeData([FromBody] EmployeeDataModel data)
         {
             _employeeDbContext.EmployeeData.Add(data);
@@ -30,7 +30,7 @@ namespace EmployeeWebApi.Controllers
             return CreatedAtAction(nameof(GetEmployeeDataById), new { EmpId = data.EmpId, controller = "employee" }, Ok("Data saved successfully"));
         }
 
-        [HttpGet("")]
+        [HttpGet]
         public async Task<IActionResult> GetEmployeeData()
         {
             var employeeData = await _employeeDbContext.EmployeeData.Select(x => new EmployeeDataModel()
@@ -62,6 +62,40 @@ namespace EmployeeWebApi.Controllers
             }).FirstOrDefaultAsync();
 
             return Ok(employeeData);
+        }
+        
+        [HttpGet("count")]
+        public async Task<IActionResult> GetTeamSizeUnderManager()
+        {
+            var countEmpData = await _employeeDbContext.EmployeeData.Select(x => new
+            {
+                EmpId = x.EmpId,
+                TeamSize = GetTeamMembersRecursively(x.EmpId).Count()
+            }).ToListAsync();
+
+            return Ok(countEmpData);
+        }
+
+        [HttpGet("count/{empId}")]
+        public async Task<IActionResult> GetTeamSize([FromRoute] string empId)
+        {
+            var countEmp = GetTeamMembersRecursively(empId).Count();
+            return Ok(countEmp);
+        }
+
+        private static IEnumerable<EmployeeDataModel> GetTeamMembersRecursively(string empId)
+        {
+            var teamMembers =  _employeeDbContext.EmployeeData.Where(e => e.ManagerId.Equals(empId)).ToList();
+            var additionalTeamMembers = new List<EmployeeDataModel>();
+
+            foreach (var member in teamMembers)
+            {
+                additionalTeamMembers.AddRange(GetTeamMembersRecursively(member.EmpId));
+            }
+
+            teamMembers.AddRange(additionalTeamMembers);
+
+            return teamMembers;
         }
 
         [HttpPut("{empId}")]
